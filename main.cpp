@@ -34,7 +34,7 @@ public:
 };
 
 
-// std::thread second(&MyTimer, time, std::ref(*matrix));
+// Вывод матрицы в отдельном потоке (не корректный таймер, так как тратится время на вывод матрицы в консоль).
 void MyTimer(int time, Matrix& matrix) {
     while (1) {
         Sleep(time);
@@ -44,13 +44,13 @@ void MyTimer(int time, Matrix& matrix) {
 }
 
 
-// main.exe command text.txt M N seconds radius
+// main.exe command text.txt M N seconds radius - аргументы командной строки при запуске программы.
 int main(int argc, char** argv) {
     setlocale(LC_ALL, "Russian");
     srand(time(0));
-    int M = 1, N = 1;
-    int radius = 1;
-    int time = 1;
+    int M = 1, N = 1; // Размер матрицы.
+    int radius = 1; // Радиус поиска соседей.
+    int time = 1;   // Время между выводом состояния доски (в миллисекундах)
     
     // Проверка на колличество аргументов командной строки и их значение.
     if (argc != 7) {
@@ -79,19 +79,26 @@ int main(int argc, char** argv) {
             time *= 1000;
         
     }
-    int command = std::stoi(argv[1]);
+    int command = std::stoi(argv[1]);   // Параметр заполнения доски
 
-   
-    Matrix *matrix = new Matrix(M, N);
+    Matrix* matrix;
+    try {
+        matrix = new Matrix(M, N);
+    }
+    catch (...) {
+        std::cout << "Не выделилась память под матрицу.\n";
+        return -5;
+    }
+
+
     std::ifstream myfile;
     
-
     switch (command) {
-        case 1: 
+        case 1:     //   Считывание из файла матрицы M на N.
             myfile.open(argv[2]);
             if (!myfile) {
                 std::cout << "Файл " << argv[2] << " не найден.\n";
-                return -5;
+                return -6;
             }
             for (int i = 0; i < M; ++i)
                 for (int j = 0; j < N; ++j)
@@ -100,7 +107,7 @@ int main(int argc, char** argv) {
             myfile.close();
             break;
 
-        case 2:
+        case 2:     //  Генерация матрицы M на N
             for (int i = 0; i < M; ++i)
                 for (int j = 0; j < N; ++j)
                     matrix->array[M * i + j] = rand() % 2;
@@ -112,24 +119,25 @@ int main(int argc, char** argv) {
             break;
     }
     
-    
+    // Запуск таймера в отдельном потоке.
     std::thread second(&MyTimer, time, std::ref(*matrix));
     second.detach();
 
+    // Начало доски.
     int row = 0;
     int col = 0;
 
-    int xr1, yr1, xr2, yr2;
+    int xr1, yr1, xr2, yr2; // Границы области проверки соседей.
     
     while (1) {
-        // Определение границ области проверки соседей
+        // Определение границ области проверки соседей.
         xr1 = row - radius;
         yr1 = col - radius;
         xr2 = row + radius;
         yr2 = col + radius;
         int neighbor = 0;
 
-        // Если область проверки соседей выходит за границу доски, то граница проверки обрезается
+        // Если область проверки соседей выходит за границу доски, то граница проверки обрезается.
         if (xr1 < 0)
             xr1 = 0;
         if (yr1 < 0)
@@ -139,17 +147,15 @@ int main(int argc, char** argv) {
         if (yr2 >= N)
             yr2 = N;
 
-        // Суммирование всех соседей.
+        // Суммирование всех соседей и вычитание собственного значения ячейки.
         for (int i = xr1; i <= xr2; ++i) {
             for (int j = yr1; j <= yr2; ++j)
                 neighbor += matrix->array[i * M + j];
         }
-
         int currentCell = row * M + col;
         neighbor -= matrix -> array[currentCell];
 
-
-        
+        // Проверка по условиям задачи.
         if (matrix -> array[currentCell] == 1) {
             if ((neighbor < 2) || (neighbor > 3)) {
                 matrix -> array[currentCell] = 0;
@@ -160,7 +166,7 @@ int main(int argc, char** argv) {
                 matrix -> array[currentCell] = 1;
         }
 
-        
+        // Проход по матрице.
         ++col;
         if (col == N) {
             col = 0;
@@ -170,4 +176,5 @@ int main(int argc, char** argv) {
             row = 0;
     }
 
+    return 0;
 }
